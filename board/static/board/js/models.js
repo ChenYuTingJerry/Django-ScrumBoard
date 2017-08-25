@@ -1,8 +1,6 @@
 (function ($, Backbone, _, app) {
 
-    // CSRF helper functions taken directly from Django docs
     function csrfSafeMethod(method) {
-        // these HTTP methods do not require CSRF protection
         return (/^(GET|HEAD|OPTIONS|TRACE)$/i.test(method));
     }
 
@@ -12,7 +10,6 @@
             var cookies = document.cookie.split(';');
             for (var i = 0; i < cookies.length; i++) {
                 var cookie = $.trim(cookies[i]);
-                // Does this cookie string begin with the name we want?
                 if (cookie.substring(0, name.length + 1) == (name + '=')) {
                     cookieValue = decodeURIComponent(
                     cookie.substring(name.length + 1));
@@ -23,13 +20,9 @@
         return cookieValue;
     }
 
-    // Setup jQuery ajax calls to handle CSRF
     $.ajaxPrefilter(function (settings, originalOptions, xhr) {
         var csrftoken;
         if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-            // Send the token to same-origin, relative URLs only.
-            // Send the token only if the method warrants CSRF protection
-            // Using the CSRFToken value acquired earlier
             csrftoken = getCookie('csrftoken');
             xhr.setRequestHeader('X-CSRFToken', csrftoken);
         }
@@ -128,10 +121,12 @@
             return response.results || [];
         },
         getOrFetch: function (id) {
+            console.log('id: ', id);
             var result = new $.Deferred();
             var model = this.get(id);
             if (!model) {
                 model = this.push({id: id});
+
                 model.fetch({
                     success: function (model, response, options) {
                         result.resolve(model);
@@ -149,12 +144,13 @@
 
     app.collections.ready = $.getJSON(app.apiRoot);
     app.collections.ready.done(function (data){
-        app.collections.Sprints = Backbone.Collection.extend({
+        app.collections.Sprints = BaseCollection.extend({
             model: app.models.Sprint,
             url: data.sprints
         });
         app.sprints = new app.collections.Sprints();
-        app.collections.Tasks = Backbone.Collection.extend({
+        console.log(app.sprints);
+        app.collections.Tasks = BaseCollection.extend({
             model: app.models.Task,
             url: data.tasks,
             getBacklog: function () {
@@ -167,7 +163,7 @@
             }
         });
         app.tasks = new app.collections.Tasks();
-        app.collections.Users = Backbone.Collection.extend({
+        app.collections.Users = BaseCollection.extend({
             model: app.models.User,
             url: data.users
         });

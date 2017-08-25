@@ -24,18 +24,20 @@ class SprintSerializer(serializers.ModelSerializer):
             'tasks': reverse('task-list', request=request) + '?sprint={}'.format(obj.pk),
         }
 
-    def validate_end(self, source):
-        end_date = source
-        if end_date < date.today():
+    def validate_end(self, value):
+        new = self.instance is None
+        changed = self.instance and self.instance.end != value
+        if (new or changed) and (value < date.today()):
             msg = _('End date cannot be in the past.')
             raise serializers.ValidationError(msg)
-        return source
+        return value
 
 
 class TaskSerializer(serializers.ModelSerializer):
     # Relational field must provide a `queryset` argument, override `get_queryset`, or set read_only=`True`.
     # assigned = serializers.SlugRelatedField(slug_field=User.USERNAME_FIELD, required=False, read_only=True)
-    assigned = serializers.SlugRelatedField(slug_field=User.USERNAME_FIELD, required=False, queryset=User.objects.all())
+    assigned = serializers.SlugRelatedField(slug_field=User.USERNAME_FIELD, required=False, allow_null=True,
+                                            queryset=User.objects.all())
     status_display = serializers.SerializerMethodField()
     links = serializers.SerializerMethodField()
 
@@ -61,9 +63,6 @@ class TaskSerializer(serializers.ModelSerializer):
                                         kwargs={User.USERNAME_FIELD: obj.assigned},
                                         request=request)
         return links
-
-    def validate(self, attrs):
-        pass
 
 
 class UserSerializer(serializers.ModelSerializer):

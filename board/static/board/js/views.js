@@ -17,7 +17,8 @@
 
     var FormView = TemplateView.extend({
         events: {
-            'submit form': 'submit'
+            'submit form': 'submit',
+            'click button.cancel': 'done'
         },
         errorTemplate: _.template('<span class="error"><%- msg %></span>'),
         clearErrors: function () {
@@ -94,16 +95,15 @@
         events: {
             'click button.add': 'renderAddForm'
         },
-        initialize: function(options){
+        initialize: function (options) {
             var self = this;
             TemplateView.prototype.initialize.apply(this, arguments);
-            app.collections.ready.done(function (){
+            app.collections.ready.done(function () {
                 var end = new Date();
                 end.setDate(end.getDate() - 7);
-                console.log('end: ', end);
                 end = end.toISOString().replace(/T.*/g, '');
                 app.sprints.fetch({
-                    data: {},
+                    data: {end_min: end},
                     success: $.proxy(self.render, self)
                 });
             });
@@ -148,7 +148,9 @@
             'click a.logout': 'logout'
         },
         getContext: function () {
-            return {authenticated: app.session.authenticated()};
+            return {
+                authenticated: app.session.authenticated()
+            };
         },
         logout: function (event) {
             event.preventDefault();
@@ -186,6 +188,9 @@
         tagName: 'section',
         className: 'status',
         templateName: '#status-template',
+        events: {
+            'click button.add': 'renderAddForm'
+        },
         initialize: function (options) {
             TemplateView.prototype.initialize.apply(this, arguments);
             this.sprint = options.sprint;
@@ -194,6 +199,39 @@
         },
         getContext: function () {
             return {sprint: this.sprint, title: this.title};
+        },
+        renderAddForm: function(event) {
+            var view = new AddTaskView();
+            var link = $(event.currentTarget);
+            event.preventDefault();
+            link.before(view.el);
+            link.hide();
+            view.render();
+            view.on('done', function(){
+                link.show();
+            });
+        },
+        addTask: function(view){
+            $('.list', this.$el).append(view.el);
+        }
+    });
+
+    var TaskItemView = TemplateView.extend({
+        tagName: 'div',
+        className: 'task-item',
+        templateName: '#task-item-template',
+        initialize: function(options){
+            TemplateView.prototype.initialize.apply(this, arguments);
+            this.task = options.task;
+            this.task.on('change', this.render, this);
+            this.task.on('remove', this.remove, this);
+        },
+        getContext: function(){
+            return {task: this.task};
+        },
+        render: function(){
+            TemplateView.prototype.render.apply(this, arguments);
+            this.$el.css('order', this.task.get('order'));
         }
     });
 
@@ -204,7 +242,7 @@
             TemplateView.prototype.initialize.apply(this, arguments);
             this.sprintId = options.sprintId;
             this.sprint = null;
-            this.tasks = [];
+            this.tasks = {};
             this.statuses = {
                 unassigned: new StatusView({
                     sprint: null,
@@ -219,7 +257,7 @@
                 active: new StatusView({
                     sprint: this.sprintId,
                     status: 2,
-                    title: 'In Testing'
+                    title: 'Progress'
                 }),
                 testing: new StatusView({
                     sprint: this.sprintId,
@@ -237,16 +275,13 @@
                 app.sprints.getOrFetch(self.sprintId).done(function (sprint) {
                     self.sprint = sprint;
                     self.render();
-                    // Add any current tasks
                     app.tasks.each(self.addTask, self);
-                    // Fetch tasks for the current sprint
                     sprint.fetchTasks();
                 }).fail(function(sprint){
                     self.sprint = sprint;
                     self.sprint.invalid = true;
                     self.render();
                 });
-                // Fetch unassigned tasks
                 app.tasks.getBacklog();
             });
         },
@@ -260,18 +295,27 @@
                 view.delegateEvents();
                 view.render();
             }, this);
+            _.each(this.tasks, function(view, taskId){
+                var task = app.tasks.get(taskId);
+                view.remove();
+                this.tasks[taskId] = this.renderTask(task);
+            }, this);
         },
         addTask: function (task) {
             if (task.inBacklog() || task.inSprint(this.sprint)) {
-                this.tasks[task.get('id')] = task;
-                this.renderTask(task);
+                this.tasks[task.get('id')] = this.renderTask(task);
             }
         },
         renderTask: function (task) {
-            var column = task.statusClass();
-            var container = this.statuses[column];
-            var html = _.template('<div><%- task.get("name") %></div>', {task: task});
-            $('.list', container.$el).append(html);
+            var view = new TaskItemView({task: task});
+            _.each(this.statuses, function(container, name){
+                if(container.sprint == task.get('sprint') &&
+                   container.status == task.get('status')){
+                   container.addTask(view);
+                }
+            });
+            view.render();
+            return view;
         }
     });
 
