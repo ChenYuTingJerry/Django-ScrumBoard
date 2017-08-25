@@ -96,6 +96,7 @@
                     remove: false
                 });
             }
+        }
     });
     app.models.Task = Backbone.Model.extend({
         statusClass: function () {
@@ -160,7 +161,7 @@
                 this.fetch({
                     remove: false,
                     data: {
-                        backlog: 'True'xr
+                        backlog: 'True'
                     }
                 });
             }
