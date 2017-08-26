@@ -216,6 +216,76 @@
         }
     });
 
+    var TaskDetailView = FormView.extend({
+        tagName: 'div',
+        className: 'task-detail',
+        templateName: '#task-detail-template',
+        events: _.extend({
+            'blur [data-field][contenteditable=true]': 'editField'
+        }, FormView.prototype.events),
+        initialize: function (options) {
+            FormView.prototype.initialize.apply(this, arguments);
+            this.task = options.task;
+            this.changes = {};
+            $('button.save', this.$el).hide();
+            this.task.on('change', this.render, this);
+            this.task.on('remove', this.remove, this);
+        },
+        getContext: function(){
+            return {task: this.task, empty: '-----'};
+        },
+        submit: function (event) {
+            FormView.prototype.submit.apply(this, arguments);
+            this.task.save(this.changes, {
+                wait: true,
+                success: $.proxy(this.success, this),
+                error: $.proxy(this.modelFailure, this)
+            });
+        },
+        success: function (model) {
+            this.changes = {};
+            $('button.save', this.$el).hide();
+        },
+        render: function(){
+            TemplateView.prototype.render.apply(this, arguments);
+            this.$el.css('order', this.task.get('order'));
+        },
+        details: function(){
+            var view = new TaskDetailView({task: this.task});
+            this.$el.before(view.el);
+            this.$el.hide();
+            view.render();
+            view.on('done', function () {
+                this.$el.show();
+            }, this);
+        },
+        editField: function(event) {
+            var $this = $(event.currentTarget);
+            var value = $this.text().replace(/^\s+|\s+$/g,'');
+            var field = $this.data('field');
+            this.changes[field] = value;
+            $('button.save', this.$el).show();
+        },
+        showErrors: function(errors) {
+            _.map(errors, function(fieldErrors, name){
+                var field = $('[data-field=' + name + ']', this.$el);
+                if (field.length === 0) {
+                    field = $('[data-field]', this.$el).first();
+                }
+                function appendError(msg){
+                    var parent = field.parent('.with-label');
+                    var error = this.errorTemplate({msg: msg});
+                    if (parent.length  === 0) {
+                        field.before(error);
+                    } else {
+                        parent.before(error);
+                    }
+                }
+                _.map(fieldErrors, appendError, this);
+            }, this);
+        }
+    });
+
     var TaskItemView = TemplateView.extend({
         tagName: 'div',
         className: 'task-item',

@@ -149,7 +149,6 @@
             url: data.sprints
         });
         app.sprints = new app.collections.Sprints();
-        console.log(app.sprints);
         app.collections.Tasks = BaseCollection.extend({
             model: app.models.Task,
             url: data.tasks,
