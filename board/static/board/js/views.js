@@ -189,7 +189,11 @@
         className: 'status',
         templateName: '#status-template',
         events: {
-            'click button.add': 'renderAddForm'
+            'click button.add': 'renderAddForm',
+            'dragenter': 'enter',
+            'dragover': 'over',
+            'dragleave': 'leave',
+            'drop': 'drop'
         },
         initialize: function (options) {
             TemplateView.prototype.initialize.apply(this, arguments);
@@ -213,6 +217,36 @@
         },
         addTask: function(view){
             $('.list', this.$el).append(view.el);
+        },
+        enter: function(event){
+            event.originalEvent.dataTransfer.effectAllowed = 'move';
+            event.preventDefault();
+            this.$el.addClass('over');
+        },
+        over: function(event){
+            event.originalEvent.dataTransfer.dropEffect = 'move';
+        },
+        leave: function(event){
+            this.$el.removeClass('over');
+        },
+        drop: function(event){
+            var dataTransfer = event.originalEvent.dataTransfer;
+            var task = dataTransfer.getData('application/model');
+            if(event.stopPropagation){
+               event.stopPropagation();
+            }
+            task - app.tasks.get(task);
+            tasks = app.tasks.where({sprint: this.sprint, status: this.status});
+            if(tasks.length){
+                order = _.min(_.map(tasks, function(model){
+                    return model.get('order');
+                }));
+            } else{
+                order = 1;
+            }
+            task.moveTo(this.status, this.sprint, order -1);
+            this.trigger('drop', task);
+            this.leave();
         }
     });
 
@@ -290,6 +324,18 @@
         tagName: 'div',
         className: 'task-item',
         templateName: '#task-item-template',
+        events: {
+            'click': 'details',
+            'dragstart': 'start',
+            'dragenter': 'enter',
+            'dragover': 'over',
+            'dragleave': 'leave',
+            'dragend': 'end',
+            'drop': 'drop'
+        },
+        attributes:{
+            draggable: true
+        },
         initialize: function(options){
             TemplateView.prototype.initialize.apply(this, arguments);
             this.task = options.task;
@@ -302,6 +348,59 @@
         render: function(){
             TemplateView.prototype.render.apply(this, arguments);
             this.$el.css('order', this.task.get('order'));
+        },
+        start: function(event){
+            var dataTransfer = event.originalEvent.dataTransfer;
+            dataTransfer.effectAllowed = 'move';
+            dataTransfer.setData('application/model', this.task.get('id'));
+            this.trigger('dragstart', this.task);
+        },
+        enter: function(event){
+            event.originalEvent.dataTransfer.effectAllowed = 'move';
+            event.preventDefault();
+            this.$el.addClass('over');
+        },
+        over: function(event){
+            event.originalEvent.dataTransfer.dropEffect = 'move';
+            event.preventDefault();
+            return false;
+        },
+        end: function(event){
+            this.trigger('dragend', this.task);
+        },
+        leave: function(event){
+            this.$el.removeClass('over');
+        },
+        drop: function(event){
+            var dataTransfer = event.originalEvent.dataTransfer;
+            var task = dataTransfer.getData('application/model');
+            if(event.stopPropagation){
+                event.stopPropagation();
+            }
+            task = app.tasks.get(task);
+            if(task !== this.task){
+                // Task is being moved in front of this.task
+                order - this.task.get('order');
+                tasks = app.tasks.filter(function(model){
+                    return model.get('id' !== task.get('id') &&
+                        model.get('status') === self.task.get('status') &&
+                        model.get('sprint') === self.task.get('sprint') &&
+                        model.get('order') >= order;
+                });
+                _.each(tasks, function(model, i){
+                    model.save({order: order + (i+1)});
+                });
+                task.moveTo(this.task.get('status'), this.task.get('sprint'), order);
+            }
+            this.trigger('drop', task);
+            this.leave();
+            return false;
+        },
+        lock: function(){
+            this.$el.addClass('locked');
+        },
+        unlock: function(){
+            this.$el.removeClass('locked');
         }
     });
 
@@ -340,10 +439,13 @@
                     title: 'Completed'
                 })
             };
+            this.socket = null;
             app.collections.ready.done(function() {
                 app.tasks.on('add', self.addTask, self);
+                app.tasks.on('change', self.changeTask, self);
                 app.sprints.getOrFetch(self.sprintId).done(function (sprint) {
                     self.sprint = sprint;
+                    self.connectSocket();
                     self.render();
                     app.tasks.each(self.addTask, self);
                     sprint.fetchTasks();
@@ -385,7 +487,61 @@
                 }
             });
             view.render();
+            view.on('dragstart', function(model){
+                this.socket.send({
+                    model: 'task',
+                    id: model.get('id'),
+                    action: 'dragstart'
+                });
+            }, this);
+            view.on('dragend', function(model){
+                this.socket.send({
+                    model: 'task',
+                    id: model.get('id'),
+                    action: 'dragend'
+                });
+            }, this);
+            view.on('drop', function(model){
+                this.socket.send({
+                    model: 'task',
+                    id: model.get('id'),
+                    action: 'drop'
+                });
+            }, this);
             return view;
+        },
+        connectSocket: function(){
+            var links = this.sprint && this.sprint.get('links');
+            if (links && links.channel){
+                this.socket = new app.Socket(links.channel);
+                this.socket.on('task:dragstart', function(task){
+                    var view = this.task[task];
+                    if(view){
+                        view.lock();
+                    }
+                }, this);
+                this.socket.on('task:gragend task:drop', function(task){
+                    var view = this.tasks[task];
+                    if(view){
+                        view.unlock();
+                    }
+                }, this);
+            }
+        },
+        remove: function(){
+            TemplateView.prototype.remove.apply(this, arguments);
+            if(this.socket && this.socket.close){
+                this.socket.close();
+            }
+        },
+        changeTask: function(task){
+            var changed = task.changedAttributes();
+            var view = this.tasks[task.get('id')];
+            if(view && typeof(changed.status) !== 'undefined' ||
+                typeof(changed.sprint) !== 'undefined'){
+                view.remove();
+                this.addTask(task);
+            }
         }
     });
 

@@ -80,7 +80,7 @@
         }
     });
 
-    app.models.Sprint = Backbone.Model.extend({
+    app.models.Sprint = BaseModel.extend({
         fetchTasks: function () {
             var links = this.get('links');
             if (links && links.tasks) {
@@ -91,7 +91,7 @@
             }
         }
     });
-    app.models.Task = Backbone.Model.extend({
+    app.models.Task = BaseModel.extend({
         statusClass: function () {
             var sprint = this.get('sprint');
             var status;
@@ -107,9 +107,35 @@
         },
         inSprint: function (sprint) {
             return sprint.get('id') == this.get('sprint');
+        },
+        moveTo: function(status, sprint, order){
+            var updates = {
+                status: status,
+                sprint: sprint,
+                order: order
+            };
+            var today = new Date().toISOString().replace(/T.*/g, '');
+            // Backlog Tasks
+            if(!updates.sprint){
+                // Tasks move back to the backlog
+                updates.stats = 1;
+            }
+            // Started Tasks
+            if((updates.status === 2) || (updates.status > 2 && !this.get('started'))){
+                updates.started = today;
+            } else if(updates.status < 2 && this.get('started')){
+                updates.started = null;
+            }
+            // Completed Tasks
+            if(updates.status === 4){
+                updates.completed = today;
+            } else if(updates.status < 4 && this.get('completed')){
+                updates.completed = null;
+            }
+            this.save(updates);
         }
     });
-    app.models.User = Backbone.Model.extend({
+    app.models.User = BaseModel.extend({
         idAttributemodel: 'username',
     });
 

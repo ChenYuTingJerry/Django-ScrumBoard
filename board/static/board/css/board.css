@@ -199,3 +199,20 @@ header nav a:hover {
 [contenteditable=true]:focus {
     background: #FFF;
 }
+
+[draggable=true]{
+    cursor: move;
+}
+
+.tasks .tasks-item.over {
+    opacity: 0.5;
+    border: 1px black dotted;
+}
+
+.tasks .status.over {
+    border: 1px black dotted;
+}
+
+.tasks .task-item.locked {
+    opacity: 0.5;
+}
