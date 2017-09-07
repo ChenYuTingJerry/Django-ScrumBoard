@@ -1,15 +1,17 @@
 from rest_framework import viewsets, authentication, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 from .forms import TaskFilter, SprintFilter
 from .models import Sprint, Task
 from .serializers import SprintSerializer, TaskSerializer, UserSerializer
+import requests
 
 User = get_user_model()
 
 
-class DefaultsMixin(object):
+class DefaultsMixin():
     """Default settings for view authentication, permissions,
     filtering and pagination."""
 
@@ -28,6 +30,10 @@ class DefaultsMixin(object):
         filters.SearchFilter,
         filters.OrderingFilter,
     )
+
+
+class UpdateHookMixin():
+    """Mixin class to send update information to the websocket server."""
 
 
 class SprintViewSet(DefaultsMixin, viewsets.ModelViewSet):

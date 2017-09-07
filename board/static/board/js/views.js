@@ -232,10 +232,12 @@
         drop: function(event){
             var dataTransfer = event.originalEvent.dataTransfer;
             var task = dataTransfer.getData('application/model');
+            var tasks;
+            var order;
             if(event.stopPropagation){
                event.stopPropagation();
             }
-            task - app.tasks.get(task);
+            task = app.tasks.get(task);
             tasks = app.tasks.where({sprint: this.sprint, status: this.status});
             if(tasks.length){
                 order = _.min(_.map(tasks, function(model){
@@ -372,15 +374,18 @@
             this.$el.removeClass('over');
         },
         drop: function(event){
+            var self=this;
             var dataTransfer = event.originalEvent.dataTransfer;
             var task = dataTransfer.getData('application/model');
+            var tasks;
+            var order;
             if(event.stopPropagation){
                 event.stopPropagation();
             }
             task = app.tasks.get(task);
             if(task !== this.task){
                 // Task is being moved in front of this.task
-                order - this.task.get('order');
+                order = this.task.get('order');
                 tasks = app.tasks.filter(function(model){
                     return model.get('id' !== task.get('id') &&
                         model.get('status') === self.task.get('status') &&
@@ -390,7 +395,10 @@
                 _.each(tasks, function(model, i){
                     model.save({order: order + (i+1)});
                 });
-                task.moveTo(this.task.get('status'), this.task.get('sprint'), order);
+                task.moveTo(
+                    this.task.get('status'),
+                    this.task.get('sprint'),
+                    order);
             }
             this.trigger('drop', task);
             this.leave();
@@ -439,6 +447,15 @@
                     title: 'Completed'
                 })
             };
+            _.each(this.statuses, function(view, name){
+                view.on('drop', function(model){
+                    this.socket.send({
+                        model: 'task',
+                        id: model.get('id'),
+                        action: 'drop'
+                    });
+                }, this);
+            }, this);
             this.socket = null;
             app.collections.ready.done(function() {
                 app.tasks.on('add', self.addTask, self);
