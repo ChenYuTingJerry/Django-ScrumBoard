@@ -117,6 +117,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-WATERCOOLER_SERVER = os.environ.get('WATERCOOLER_SERVER', 'localhost:8080')
+WATERCOOLER_SERVER = os.environ.get('WATERCOOLER_SERVER', '127.0.0.1:8080')
 
 WATERCOOLER_SECURE = bool(os.environ.get('WATERCOOLER_SECURE', ''))
+
+WATERCOOLER_SECRET = os.environ.get('WATERCOOLER_SECRET', 'pTyz1dzMeVUGrb0Su4QXsP984qTlvQRHpFnnlHuH')

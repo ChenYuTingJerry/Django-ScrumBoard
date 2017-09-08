@@ -12,7 +12,7 @@
         },
         getContext: function () {
             return {};
-        },
+        }
     });
 
     var FormView = TemplateView.extend({
@@ -68,15 +68,12 @@
     var NewSprintView = FormView.extend({
         templateName: '#new-sprint-template',
         className: 'new-sprint',
-        events: _.extend({
-            'click button.cancel': 'done',
-        }, FormView.prototype.events),
-        submit: function(event){
-            var self = this;
-            var attributes = {};
+        submit: function (event) {
+            var self = this,
+                attributes = {};
             FormView.prototype.submit.apply(this, arguments);
             attributes = this.serializeForm(this.form);
-            app.collections.ready.done(function() {
+            app.collections.ready.done(function () {
                 app.sprints.create(attributes, {
                     wait: true,
                     success: $.proxy(self.success, self),
@@ -85,7 +82,7 @@
             });
         },
         success: function (model) {
-            this.done(),
+            this.done();
             window.location.hash = '#sprint/' + model.get('id');
         }
     });
@@ -111,9 +108,9 @@
         getContext: function () {
             return {sprints: app.sprints || null};
         },
-        renderAddForm: function(event){
-            var view = new NewSprintView();
-            var link = $(event.currentTarget);
+        renderAddForm: function (event) {
+            var view = new NewSprintView(),
+                link = $(event.currentTarget);
             event.preventDefault();
             link.before(view.el);
             link.hide();
@@ -138,7 +135,7 @@
         loginSuccess: function (data) {
             app.session.save(data.token);
             this.done();
-        },
+        }
     });
 
     var HeaderView = TemplateView.extend({
@@ -148,9 +145,7 @@
             'click a.logout': 'logout'
         },
         getContext: function () {
-            return {
-                authenticated: app.session.authenticated()
-            };
+            return {authenticated: app.session.authenticated()};
         },
         logout: function (event) {
             event.preventDefault();
@@ -161,13 +156,9 @@
 
     var AddTaskView = FormView.extend({
         templateName: '#new-task-template',
-        events: _.extend({
-            'submit form': 'submit',
-            'click button.cancel': 'done',
-        }, FormView.prototype.events),
-        submit: function(event){
-            var self=this;
-            var attributes={};
+        submit: function (event) {
+            var self = this,
+                attributes = {};
             FormView.prototype.submit.apply(this, arguments);
             attributes = this.serializeForm(this.form);
             app.collections.ready.done(function () {
@@ -181,7 +172,6 @@
         success: function (model, resp, options) {
             this.done();
         }
-
     });
 
     var StatusView = TemplateView.extend({
@@ -204,49 +194,50 @@
         getContext: function () {
             return {sprint: this.sprint, title: this.title};
         },
-        renderAddForm: function(event) {
-            var view = new AddTaskView();
-            var link = $(event.currentTarget);
+        renderAddForm: function (event) {
+            var view = new AddTaskView(),
+                link = $(event.currentTarget);
             event.preventDefault();
             link.before(view.el);
             link.hide();
             view.render();
-            view.on('done', function(){
+            view.on('done', function () {
                 link.show();
             });
         },
-        addTask: function(view){
+        addTask: function (view) {
             $('.list', this.$el).append(view.el);
         },
-        enter: function(event){
+        enter: function (event) {
             event.originalEvent.dataTransfer.effectAllowed = 'move';
             event.preventDefault();
             this.$el.addClass('over');
         },
-        over: function(event){
+        over: function (event) {
             event.originalEvent.dataTransfer.dropEffect = 'move';
+            event.preventDefault();
+            return false;
         },
-        leave: function(event){
+        leave: function (event) {
             this.$el.removeClass('over');
         },
-        drop: function(event){
-            var dataTransfer = event.originalEvent.dataTransfer;
-            var task = dataTransfer.getData('application/model');
-            var tasks;
-            var order;
-            if(event.stopPropagation){
-               event.stopPropagation();
+        drop: function (event) {
+            var dataTransfer = event.originalEvent.dataTransfer,
+                task = dataTransfer.getData('application/model'),
+                tasks, order;
+            if (event.stopPropagation) {
+                event.stopPropagation();
             }
             task = app.tasks.get(task);
             tasks = app.tasks.where({sprint: this.sprint, status: this.status});
-            if(tasks.length){
-                order = _.min(_.map(tasks, function(model){
+            if (tasks.length) {
+                order = _.min(_.map(tasks, function (model) {
                     return model.get('order');
                 }));
-            } else{
+            } else {
                 order = 1;
             }
-            task.moveTo(this.status, this.sprint, order -1);
+            task.moveTo(this.status, this.sprint, order - 1);
             this.trigger('drop', task);
             this.leave();
         }
@@ -267,7 +258,7 @@
             this.task.on('change', this.render, this);
             this.task.on('remove', this.remove, this);
         },
-        getContext: function(){
+        getContext: function () {
             return {task: this.task, empty: '-----'};
         },
         submit: function (event) {
@@ -282,35 +273,22 @@
             this.changes = {};
             $('button.save', this.$el).hide();
         },
-        render: function(){
-            TemplateView.prototype.render.apply(this, arguments);
-            this.$el.css('order', this.task.get('order'));
-        },
-        details: function(){
-            var view = new TaskDetailView({task: this.task});
-            this.$el.before(view.el);
-            this.$el.hide();
-            view.render();
-            view.on('done', function () {
-                this.$el.show();
-            }, this);
-        },
-        editField: function(event) {
-            var $this = $(event.currentTarget);
-            var value = $this.text().replace(/^\s+|\s+$/g,'');
-            var field = $this.data('field');
+        editField: function (event) {
+            var $this = $(event.currentTarget),
+                value = $this.text().replace(/^\s+|\s+$/g,''),
+                field = $this.data('field');
             this.changes[field] = value;
             $('button.save', this.$el).show();
         },
-        showErrors: function(errors) {
-            _.map(errors, function(fieldErrors, name){
+        showErrors: function (errors) {
+            _.map(errors, function (fieldErrors, name) {
                 var field = $('[data-field=' + name + ']', this.$el);
                 if (field.length === 0) {
                     field = $('[data-field]', this.$el).first();
                 }
-                function appendError(msg){
-                    var parent = field.parent('.with-label');
-                    var error = this.errorTemplate({msg: msg});
+                function appendError(msg) {
+                    var parent = field.parent('.with-label'),
+                        error = this.errorTemplate({msg: msg});
                     if (parent.length  === 0) {
                         field.before(error);
                     } else {
@@ -335,65 +313,73 @@
             'dragend': 'end',
             'drop': 'drop'
         },
-        attributes:{
+        attributes: {
             draggable: true
         },
-        initialize: function(options){
+        initialize: function (options) {
             TemplateView.prototype.initialize.apply(this, arguments);
             this.task = options.task;
             this.task.on('change', this.render, this);
             this.task.on('remove', this.remove, this);
         },
-        getContext: function(){
+        getContext: function () {
             return {task: this.task};
         },
-        render: function(){
+        render: function () {
             TemplateView.prototype.render.apply(this, arguments);
             this.$el.css('order', this.task.get('order'));
         },
-        start: function(event){
+        details: function () {
+            var view = new TaskDetailView({task: this.task});
+            this.$el.before(view.el);
+            this.$el.hide();
+            view.render();
+            view.on('done', function () {
+                this.$el.show();
+            }, this);
+        },
+        start: function (event) {
             var dataTransfer = event.originalEvent.dataTransfer;
             dataTransfer.effectAllowed = 'move';
             dataTransfer.setData('application/model', this.task.get('id'));
             this.trigger('dragstart', this.task);
         },
-        enter: function(event){
+        enter: function (event) {
             event.originalEvent.dataTransfer.effectAllowed = 'move';
             event.preventDefault();
             this.$el.addClass('over');
         },
-        over: function(event){
+        over: function (event) {
             event.originalEvent.dataTransfer.dropEffect = 'move';
             event.preventDefault();
             return false;
         },
-        end: function(event){
+        end: function (event) {
             this.trigger('dragend', this.task);
         },
-        leave: function(event){
+        leave: function (event) {
             this.$el.removeClass('over');
         },
-        drop: function(event){
-            var self=this;
-            var dataTransfer = event.originalEvent.dataTransfer;
-            var task = dataTransfer.getData('application/model');
-            var tasks;
-            var order;
-            if(event.stopPropagation){
+        drop: function (event) {
+            var self = this,
+                dataTransfer = event.originalEvent.dataTransfer,
+                task = dataTransfer.getData('application/model'),
+                tasks, order;
+            if (event.stopPropagation) {
                 event.stopPropagation();
             }
             task = app.tasks.get(task);
-            if(task !== this.task){
+            if (task !== this.task) {
                 // Task is being moved in front of this.task
                 order = this.task.get('order');
-                tasks = app.tasks.filter(function(model){
-                    return model.get('id' !== task.get('id') &&
+                tasks = app.tasks.filter(function (model) {
+                    return model.get('id') !== task.get('id') &&
                         model.get('status') === self.task.get('status') &&
                         model.get('sprint') === self.task.get('sprint') &&
                         model.get('order') >= order;
                 });
-                _.each(tasks, function(model, i){
-                    model.save({order: order + (i+1)});
+                _.each(tasks, function (model, i) {
+                    model.save({order: order + (i + 1)});
                 });
                 task.moveTo(
                     this.task.get('status'),
@@ -404,17 +390,17 @@
             this.leave();
             return false;
         },
-        lock: function(){
+        lock: function () {
             this.$el.addClass('locked');
         },
-        unlock: function(){
+        unlock: function () {
             this.$el.removeClass('locked');
         }
     });
 
     var SprintView = TemplateView.extend({
         templateName: '#sprint-template',
-        initialize: function(options) {
+        initialize: function (options) {
             var self = this;
             TemplateView.prototype.initialize.apply(this, arguments);
             this.sprintId = options.sprintId;
@@ -422,33 +408,18 @@
             this.tasks = {};
             this.statuses = {
                 unassigned: new StatusView({
-                    sprint: null,
-                    status: 1,
-                    title: 'Backlog'
-                }),
+                    sprint: null, status: 1, title: 'Backlog'}),
                 todo: new StatusView({
-                    sprint: this.sprintId,
-                    status: 1,
-                    title: 'Not Started'
-                }),
+                    sprint: this.sprintId, status: 1, title: 'Not Started'}),
                 active: new StatusView({
-                    sprint: this.sprintId,
-                    status: 2,
-                    title: 'Progress'
-                }),
+                    sprint: this.sprintId, status: 2, title: 'In Development'}),
                 testing: new StatusView({
-                    sprint: this.sprintId,
-                    status: 3,
-                    title: 'In Testing'
-                }),
+                    sprint: this.sprintId, status: 3, title: 'In Testing'}),
                 done: new StatusView({
-                    sprint: this.sprintId,
-                    status: 4,
-                    title: 'Completed'
-                })
+                    sprint: this.sprintId, status: 4, title: 'Completed'})
             };
-            _.each(this.statuses, function(view, name){
-                view.on('drop', function(model){
+            _.each(this.statuses, function (view, name) {
+                view.on('drop', function (model) {
                     this.socket.send({
                         model: 'task',
                         id: model.get('id'),
@@ -457,34 +428,37 @@
                 }, this);
             }, this);
             this.socket = null;
-            app.collections.ready.done(function() {
+            app.collections.ready.done(function () {
                 app.tasks.on('add', self.addTask, self);
                 app.tasks.on('change', self.changeTask, self);
                 app.sprints.getOrFetch(self.sprintId).done(function (sprint) {
                     self.sprint = sprint;
                     self.connectSocket();
                     self.render();
+                    // Add any current tasks
                     app.tasks.each(self.addTask, self);
+                    // Fetch tasks for the current sprint
                     sprint.fetchTasks();
-                }).fail(function(sprint){
+                }).fail(function (sprint) {
                     self.sprint = sprint;
                     self.sprint.invalid = true;
                     self.render();
                 });
+                // Fetch unassigned tasks
                 app.tasks.getBacklog();
             });
         },
-        getContext: function(){
+        getContext: function () {
             return {sprint: this.sprint};
         },
-        render: function(){
+        render: function () {
             TemplateView.prototype.render.apply(this, arguments);
             _.each(this.statuses, function (view, name) {
                 $('.tasks', this.$el).append(view.el);
                 view.delegateEvents();
                 view.render();
             }, this);
-            _.each(this.tasks, function(view, taskId){
+            _.each(this.tasks, function (view, taskId) {
                 var task = app.tasks.get(taskId);
                 view.remove();
                 this.tasks[taskId] = this.renderTask(task);
@@ -497,65 +471,90 @@
         },
         renderTask: function (task) {
             var view = new TaskItemView({task: task});
-            _.each(this.statuses, function(container, name){
-                if(container.sprint == task.get('sprint') &&
-                   container.status == task.get('status')){
-                   container.addTask(view);
+            _.each(this.statuses, function (container, name) {
+                if (container.sprint == task.get('sprint') &&
+                    container.status == task.get('status')) {
+                    container.addTask(view);
                 }
             });
-            view.render();
-            view.on('dragstart', function(model){
+            view.on('dragstart', function (model) {
                 this.socket.send({
                     model: 'task',
                     id: model.get('id'),
                     action: 'dragstart'
                 });
             }, this);
-            view.on('dragend', function(model){
+            view.on('dragend', function (model) {
                 this.socket.send({
                     model: 'task',
                     id: model.get('id'),
                     action: 'dragend'
                 });
             }, this);
-            view.on('drop', function(model){
+            view.on('drop', function (model) {
                 this.socket.send({
                     model: 'task',
                     id: model.get('id'),
                     action: 'drop'
                 });
             }, this);
+            view.render();
             return view;
         },
-        connectSocket: function(){
+        connectSocket: function () {
+            console.log('sprint: ',this.sprint);
+            console.log('links: ',this.sprint.get('links'));
             var links = this.sprint && this.sprint.get('links');
-            if (links && links.channel){
+            if (links && links.channel) {
+                console.log('links.channel: '+links.channel);
                 this.socket = new app.Socket(links.channel);
-                this.socket.on('task:dragstart', function(task){
-                    var view = this.task[task];
-                    if(view){
+                this.socket.on('task:dragstart', function (task) {
+                    var view = this.tasks[task];
+                    if (view) {
                         view.lock();
                     }
                 }, this);
-                this.socket.on('task:gragend task:drop', function(task){
+                this.socket.on('task:dragend task:drop', function (task) {
                     var view = this.tasks[task];
-                    if(view){
+                    if (view) {
                         view.unlock();
                     }
                 }, this);
+                this.socket.on('task:add', function (task, result) {
+                    var model
+                    if (result.body) {
+                        model = app.tasks.add([result.body]);
+                    } else {
+                        model = app.tasks.push({id: task});
+                        model.fetch();
+                    }
+                }, this);
+                this.socket.on('task:update', function (task, result) {
+                    var model = app.tasks.get(task);
+                    if (model) {
+                        if (result.body) {
+                            model.set(result.body);
+                        } else {
+                            model.fetch();
+                        }
+                    }
+                }, this);
+                this.socket.on('task:remove', function (task) {
+                    app.tasks.remove({id: task});
+                }, this);
             }
         },
-        remove: function(){
+        remove: function () {
             TemplateView.prototype.remove.apply(this, arguments);
-            if(this.socket && this.socket.close){
+            if (this.socket && this.socket.close) {
                 this.socket.close();
             }
         },
-        changeTask: function(task){
-            var changed = task.changedAttributes();
-            var view = this.tasks[task.get('id')];
-            if(view && typeof(changed.status) !== 'undefined' ||
-                typeof(changed.sprint) !== 'undefined'){
+        changeTask: function (task) {
+            var changed = task.changedAttributes(),
+                view = this.tasks[task.get('id')];
+            if (view && typeof(changed.status) !== 'undefined' ||
+                typeof(changed.sprint) !== 'undefined') {
                 view.remove();
                 this.addTask(task);
             }

@@ -1,5 +1,6 @@
 (function($, Backbone, _, app){
     var Socket = function(server){
+        console.log('server: '+ server);
         this.server = server;
         this.ws = null;
         this.connected = new $.Deferred();
@@ -12,6 +13,7 @@
                 this.ws = new WebSocket(this.server);
                 this.ws.onopen = $.proxy(this.onopen, this);
                 this.ws.onmessage = $.proxy(this.onmessage, this);
+                this.ws.onclose = $.proxy(this.onclose, this);
                 this.ws.onerror = $.proxy(this.onerror, this);
             }
 
@@ -53,4 +55,4 @@
     });
 
     app.Socket = Socket;
-})(jquery, Backbone, _, app);
+})(jQuery, Backbone, _, app);

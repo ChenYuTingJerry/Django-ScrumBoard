@@ -50,7 +50,7 @@
             });
             console.log('route '+ route);
             console.log('name '+ name);
-             console.log('callback '+ callback);
+            console.log('callback '+ callback);
             return Backbone.Router.prototype.route.apply(this, [route, name, callback]);
         },
         render: function (view) {
