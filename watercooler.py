@@ -35,6 +35,7 @@ class RedisSubscriber(BaseSubscriber):
             except (ValueError, KeyError):
                 message = msg.body
                 sender = None
+                
             subscribers = list(self.subscribers[msg.channel].keys())
             for subscriber in subscribers:
                 if sender is None or sender != subscriber.uid:
