@@ -18,9 +18,9 @@ import os
 import hashlib
 import json
 
-define('debug', default=False, type=bool, help='Run in debug mode')
+define('debug', default=True, type=bool, help='Run in debug mode')
 define('port', default=8080, type=int, help='Server port')
-define('allowed_hosts', default='127.0.0.1:8080', multiple=True,
+define('allowed_hosts', default='localhost:8000', multiple=True,
        help='Allowed hosts for cross domain connections')
 
 
@@ -35,14 +35,14 @@ class RedisSubscriber(BaseSubscriber):
             except (ValueError, KeyError):
                 message = msg.body
                 sender = None
-            subscribers = list(self.subscribe[msg.channel].keys())
+            subscribers = list(self.subscribers[msg.channel].keys())
             for subscriber in subscribers:
                 if sender is None or sender != subscriber.uid:
                     try:
                         subscriber.write_message(message)
                     except WebSocketClosedError:
                         # Remove dead peer
-                        self.unsubscribe(msg.channel, subscriber)
+                        self.unsubscribe(channel_name=msg.channel, subscriber=subscriber)
         super(RedisSubscriber, self).on_message(msg)
 
 
@@ -53,13 +53,22 @@ class SprintHandler(WebSocketHandler):
         pass
 
     def check_origin(self, origin):
+        print('origin: {}'.format(origin))
         allowed = super(SprintHandler, self).check_origin(origin)
+        print('allowed: {}'.format(allowed))
         parsed = urlparse(origin.lower())
+        print('parsed: {}'.format(parsed))
         matched = any(parsed.netloc == host for host in options.allowed_hosts)
+        print('matched: {}'.format(matched))
+        print('options.debug: {}'.format(options.debug))
         return options.debug or allowed or matched
+
+    # def get(self):
+    #     print('fuck: {}'.format(self.get_argument('channel', 'fucked')))
 
     def open(self):
         """ Subscribe to sprint updates on a new connection. """
+        print('open')
         self.sprint = None
         channel = self.get_argument('channel', None)
         print('chanel: '+channel)
@@ -72,6 +81,7 @@ class SprintHandler(WebSocketHandler):
                 self.close()
             else:
                 self.uid = uuid.uuid4().hex
+                print('sprint: {}'.format(self.sprint))
                 self.application.add_subscriber(self.sprint, self)
 
     def on_message(self, message):
@@ -98,11 +108,9 @@ class UpdateHandler(RequestHandler):
     def delete(self, model, pk):
         self._broadcast(model, pk, 'remove')
 
-    def get(self, model, pk):
-        print('model ')
-
     def _broadcast(self, model, pk, action):
         signature = self.request.headers.get('X-Signature', None)
+        print('signature: '+signature)
         if not signature:
             raise HTTPError(400)
         try:
@@ -134,12 +142,12 @@ class UpdateHandler(RequestHandler):
 class ScrumApplication(Application):
     def __init__(self, **kwargs):
         routes = [
-            (r'/socket', SprintHandler),
+            (r'/socket?', SprintHandler),
             (r'/(?P<model>task|sprint|user)/(?P<pk>[0-9]+)', UpdateHandler),
         ]
         super(ScrumApplication, self).__init__(routes, **kwargs)
         print("ScrumApplication")
-        self.subscriber = RedisSubscriber(Client)
+        self.subscriber = RedisSubscriber(Client())
         self.publisher = Redis()
         self._key = os.environ.get('WATERCOOLER_SECRET', 'pTyz1dzMeVUGrb0Su4QXsP984qTlvQRHpFnnlHuH')
         self.signer = TimestampSigner(self._key)
@@ -153,10 +161,6 @@ class ScrumApplication(Application):
         self.subscriber.unsubscribe(channel, subscriber)
         self.subscriber.unsubscribe('all', subscriber)
 
-    def get_subscriber(self, channel):
-        print('get_subscriber: {}'.format(channel))
-        return self.subscriptions[channel]
-
     def broadcast(self, message, channel=None, sender=None):
         print('broadcast: {}'.format(message))
         channel = 'all' if channel is None else channel
@@ -168,7 +172,7 @@ class ScrumApplication(Application):
 
 
 def shutdown(server):
-    ioloop = IOLoop.current(instance=True)
+    ioloop = IOLoop.current()
     logging.info('Stopping server.')
     server.stop()
 
@@ -186,4 +190,4 @@ if __name__ == "__main__":
     server.listen(options.port)
     signal.signal(signal.SIGINT, lambda sig, frame: shutdown(server))
     logging.info('Starting server on localhost:{}'.format(options.port))
-    IOLoop.current(instance=True).start()
+    IOLoop.current().start()

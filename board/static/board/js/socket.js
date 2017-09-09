@@ -31,9 +31,10 @@
             this.connected.resolve(true);
             this.trigger('open');
         },
-        onmessage: function(){
+        onmessage: function(message){
             var result = JSON.parse(message.data);
             this.trigger('message', result, message);
+            console.log('');
             if(result.model && result.action){
                 this.trigger(result.model + ':' + result.action, result.id, result, message);
             }
