@@ -64,9 +64,6 @@ class SprintHandler(WebSocketHandler):
         print('options.debug: {}'.format(options.debug))
         return options.debug or allowed or matched
 
-    # def get(self):
-    #     print('fuck: {}'.format(self.get_argument('channel', 'fucked')))
-
     def open(self):
         """ Subscribe to sprint updates on a new connection. """
         print('open')
@@ -169,6 +166,7 @@ class ScrumApplication(Application):
             'sender': sender and sender.uid,
             'message': message
         })
+        print('channel: {}, message: {}'.format(channel, message))
         self.publisher.publish(channel, message)
 
 

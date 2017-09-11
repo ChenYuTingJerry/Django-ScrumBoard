@@ -1,6 +1,5 @@
 (function($, Backbone, _, app){
     var Socket = function(server){
-        console.log('server: '+ server);
         this.server = server;
         this.ws = null;
         this.connected = new $.Deferred();
@@ -33,9 +32,9 @@
         },
         onmessage: function(message){
             var result = JSON.parse(message.data);
-            this.trigger('message', result, message);
-            console.log('');
+            console.log('onmessage: ',message.data);
             if(result.model && result.action){
+                console.log(result.model + ':' + result.action);
                 this.trigger(result.model + ':' + result.action, result.id, result, message);
             }
         },
@@ -49,6 +48,7 @@
         send: function(message){
             var self = this;
             var payload = JSON.stringify(message);
+            console.log('payload: ', payload);
             this.connected.done(function(){
                 self.ws.send(payload);
             });

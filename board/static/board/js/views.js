@@ -531,6 +531,10 @@
                 }, this);
                 this.socket.on('task:update', function (task, result) {
                     var model = app.tasks.get(task);
+                    console.log("this.socket.on('task:update')");
+                    console.log('model:', model);
+                    console.log('task:', task);
+                    console.log('result:', result);
                     if (model) {
                         if (result.body) {
                             model.set(result.body);
